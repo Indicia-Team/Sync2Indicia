@@ -118,7 +118,7 @@ begin
         UploadMetadata;
         UploadData;
       end;
-      if FDoCleanup then begin
+      if FDoCleanup then
         DeleteFile(GetWindowsTempDir + 'indiciaUpload.csv');
     end;
   finally
