@@ -38,6 +38,9 @@ type
     FSettingsFolder: string;
     FWarehouseUrl: string;
     FErrors: string;
+    FDoGenerate: boolean;
+    FDoImport: boolean;
+    FDoCleanup: boolean;
     procedure SetWebsiteID(const Value: integer);
     procedure SetWebsitePassword(const Value: string);
     procedure SetLastRunDate(const Value: TDateTime);
@@ -106,12 +109,17 @@ begin
     stream.free;
     rs := QueryLocalData;
     if (rs.RecordCount<>0) then begin
-      FindExistingRecords(rs);
-      CreateFileToUpload(rs);
-      UploadFile;
-      UploadMetadata;
-      UploadData;
-      DeleteFile(GetWindowsTempDir + 'indiciaUpload.csv');
+      if FDoGenerate then begin
+        FindExistingRecords(rs);
+        CreateFileToUpload(rs);
+      end;
+      if FDoImport then begin
+        UploadFile;
+        UploadMetadata;
+        UploadData;
+      end;
+      if FDoCleanup then begin
+        DeleteFile(GetWindowsTempDir + 'indiciaUpload.csv');
     end;
   finally
     request.free;
@@ -383,6 +391,15 @@ begin
     if linkFile.Values['direction']<>'upload' then
       ShowMessage('Only direction=upload link files are supported')
     else begin
+      FDoGenerate := true;
+      FDoImport := true;
+      FDoCleanup := true;
+      if (linkFile.IndexOfName('generate_file')>-1) and (linkFile.Values['generate_file']='false') then
+        FDoGenerate := false;
+      if (linkFile.IndexOfName('import_file')>-1) and (linkFile.Values['import_file']='false') then
+        FDoImport := false;
+      if (linkFile.IndexOfName('cleanup_file')>-1) and (linkFile.Values['cleanup_file']='false') then
+        FDoCleanup := false;
       FModel := linkFile.Values['model'];
       // a simple state machine to parse the link file
       state := sSeek;

@@ -1,11 +1,6 @@
 program Sync2Indicia;
 
 uses
-  madExcept,
-  madLinkDisAsm,
-  madListHardware,
-  madListProcesses,
-  madListModules,
   Forms,
   main in 'main.pas' {frmMain},
   Hashes in 'Hashes.pas',

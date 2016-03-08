@@ -56,7 +56,25 @@ localKeyField=(local fieldname)
 (Fields to be copied over when existing records are found)
 ```
 
-Note that any line starting with # represents a comment. Fill in the template as follows (a complete example is given below for your reference):
+Note that any line starting with # represents a comment. Under the direction=upload line you can further control the operation of Sync2Indicia by adding config values to specify which parts of the sync process will run. Specify:
+
+ - import_file=false to disable the file upload and import step
+ - generate_file=false to disable the generation of the CSV file to upload and re-use one that was generated earlier
+ - cleanup_file=false to prevent deletion of the generated CSV file
+ 
+For example, to prepare the CSV file but not import it and not clean it up afterwards:
+
+```
+direction=upload
+import_file=false
+cleanup_file=false
+model=(warehouse model name)
+etc
+```
+
+You can then later run the upload step by modifying your settings file's tasks entry. The file that will be uploaded by the generate_files step is called indiciaUpload.csv and will be placed in your Windows temporary directory. This allows you to generate your own CSV files for upload.
+
+Fill in the rest of the template as follows (a complete example is given below for your reference):
 
  - model:  Set this to the name of the model you are uploading data into on the warehouse. This is normally the singular version of the table name. For example to upload occurrences or taxa in a species list use *occurrence* and *taxa_taxon_list* respectively. 
  - fixedvalues: When uploading data, you may wish to set default values that apply to all rows rather than having to specify them individually for each row. For example when uploading taxa into a checklist you might like to set the language to latin for all rows. Specify each fixed value on a separate line beneath the `=fixedvalues=` heading, with the Indicia warehouse field name (in format _modelname_:_fieldname_) followed by an equals sign then the value to set. 
