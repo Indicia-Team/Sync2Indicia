@@ -65,6 +65,7 @@ type
     procedure MatchPotentialExistingRecords(const keys: string);
     function UrlEncode(const ASrc: string): string;
     procedure CheckUploadResult;
+    procedure AuthenticateAgainstWarehouse;
     { Private declarations }
   public
     { Public declarations }
@@ -87,11 +88,41 @@ uses Hashes, uLkJSON, ADOInt;
 
 procedure TfrmMain.Process;
 var
+  rs: _Recordset;
+begin
+  // Do we need to generate the local CSV file to upload?
+  if FDoGenerate then begin
+    Connect;
+    rs := QueryLocalData;
+    if (rs.RecordCount<>0) then begin
+      FindExistingRecords(rs);
+      CreateFileToUpload(rs);
+    end;
+  end;
+  // Do we need to actually import it?
+  if FDoImport then begin
+    // Might skip the import if we just generated an empty upload.
+    if (not FDoGenerate) or (rs.RecordCount>0) then begin
+      AuthenticateAgainstWarehouse;
+      UploadFile;
+      UploadMetadata;
+      UploadData;
+    end;
+  end;
+  // Finally, do we need to clean up?
+  if FDoCleanup and FileExists(GetWindowsTempDir + 'indiciaUpload.csv') then
+    DeleteFile(GetWindowsTempDir + 'indiciaUpload.csv');
+end;
+
+(**
+ * Obtain read and write tokens for the warehouse.
+ *)
+procedure TfrmMain.AuthenticateAgainstWarehouse;
+var
   request: TIdMultiPartFormDataStream;
   response: string;
   stream: TStringStream;
   nonces: TlkJSONbase;
-  rs: _Recordset;
 begin
   request := TIdMultiPartFormDataStream.Create;
   try
@@ -107,20 +138,6 @@ begin
     FWriteAuthToken := CalcHash(stream, haSHA1);
     FWriteNonce := nonces.Field['write'].Value;
     stream.free;
-    rs := QueryLocalData;
-    if (rs.RecordCount<>0) then begin
-      if FDoGenerate then begin
-        FindExistingRecords(rs);
-        CreateFileToUpload(rs);
-      end;
-      if FDoImport then begin
-        UploadFile;
-        UploadMetadata;
-        UploadData;
-      end;
-      if FDoCleanup then
-        DeleteFile(GetWindowsTempDir + 'indiciaUpload.csv');
-    end;
   finally
     request.free;
   end;
@@ -304,23 +321,26 @@ procedure TfrmMain.Connect;
 var
   fileContent: TStringList;
 begin
-  FConnection := TADOConnection.Create(nil);
-  if FileExists(FSettingsFolder + 'LocalConnectionString.txt') then begin
-    fileContent := TStringList.Create;
-    try
-      fileContent.LoadFromFile(FSettingsFolder + 'LocalConnectionString.txt');
-      FConnection.ConnectionString := fileContent.Text;
-    finally
-      fileContent.free;
-    end;
-  end else
-    FConnection.ConnectionString := GetRecorderConnectionString;
-  FConnection.Open;
+  if not assigned(FConnection) then begin
+    FConnection := TADOConnection.Create(nil);
+    if FileExists(FSettingsFolder + 'LocalConnectionString.txt') then begin
+      fileContent := TStringList.Create;
+      try
+        fileContent.LoadFromFile(FSettingsFolder + 'LocalConnectionString.txt');
+        FConnection.ConnectionString := fileContent.Text;
+      finally
+        fileContent.free;
+      end;
+    end else
+      FConnection.ConnectionString := GetRecorderConnectionString;
+    FConnection.Open;
+  end;
 end;
 
 constructor TfrmMain.Create(AOwner: TComponent);
 begin
   inherited;
+  FConnection := nil;
   PostMessage(self.handle, WM_START, 0, 0);
 end;
 
@@ -333,7 +353,6 @@ begin
   if not DirectoryExists(FSettingsFolder) then
     raise Exception.Create('The Sync2Indicia folder does not exist in My Documents or Public Documents');
   LoadWarehouseSettings;
-  Connect;
   ProcessFiles;
   Close;
 end;
@@ -468,8 +487,10 @@ end;
 
 procedure TfrmMain.Disconnect;
 begin
-  FConnection.Close;
-  FConnection.Free;
+  if not assigned(FConnection) then begin
+    FConnection.Close;
+    FreeAndNil(FConnection);
+  end;
 end;
 
 (**
