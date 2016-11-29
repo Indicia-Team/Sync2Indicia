@@ -90,6 +90,7 @@ procedure TfrmMain.Process;
 var
   rs: _Recordset;
 begin
+  AuthenticateAgainstWarehouse;
   // Do we need to generate the local CSV file to upload?
   if FDoGenerate then begin
     Connect;
@@ -103,7 +104,6 @@ begin
   if FDoImport then begin
     // Might skip the import if we just generated an empty upload.
     if (not FDoGenerate) or (rs.RecordCount>0) then begin
-      AuthenticateAgainstWarehouse;
       UploadFile;
       UploadMetadata;
       UploadData;
@@ -156,8 +156,8 @@ begin
   FConnection.CursorLocation := clUseClient;
   // For SQL Server we want some set options. This code skips the options for Access, probably
   // need to cover other connection types here as well.
-  if Pos('Jet OLEDB', FConnection.ConnectionString)=0 then
-    query := 'SET NOCOUNT ON; SET ANSI_WARNINGS OFF; ' + #13#10 + query;
+//  if Pos('Jet OLEDB', FConnection.ConnectionString)=0 then
+//    query := 'SET NOCOUNT ON; SET ANSI_WARNINGS OFF; ' + #13#10 + query;
   result := FConnection.Execute(query);
   if FConnection.Errors.Count>0 then begin
     for i := 0 to FConnection.Errors.Count-1 do
