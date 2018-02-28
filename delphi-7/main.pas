@@ -357,18 +357,31 @@ begin
   Close;
 end;
 
+(**
+  Process the list of *.link files in the settings folder. For each file, run the
+  synchronisation that it defines.
+*)
 procedure TfrmMain.ProcessFiles;
 var
   sr: TSearchRec;
+  files: TStringList;
+  i: integer;
 begin
+  // Load the files into a string list so we can guarantee the sort order
+  files := TStringList.Create;
   if FindFirst(FSettingsFolder + '*.link', 0, sr) = 0 then begin
     repeat
-      lblFile.Caption := 'Processing '+sr.Name;
-      ProcessFile(sr.Name);
+      files.Add(sr.name);
     until FindNext(sr)<>0;
     FindClose(sr);
+    files.sort;
+    for i := 0 to files.count-1 do begin
+      lblFile.Caption := 'Processing ' + files[i];
+      ProcessFile(files[i]);
+    end;
   end;
 end;
+
 
 
 procedure TfrmMain.ProcessFile(const AFile: string);
